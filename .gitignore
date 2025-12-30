@@ -1,0 +1,21 @@
+# OS / IDE
+.vs/
+.DS_Store
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local outputs
+out/
+*.log
+
+# Generated configs/artifacts (keep base configs only)
+config/generated/
+
+# Secrets (if you ever add them)
+.env
+*.secrets.*
