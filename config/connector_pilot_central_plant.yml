@@ -1,0 +1,72 @@
+connector:
+  name: "central-plant-pilot"
+  environment: "dev"
+  organization_id: "ORG_REPLACE_ME"
+
+metasys:
+  host: "https://YOUR-METASYS-SERVER"   # example: https://metasys-server.example.com
+  api_base: "/api/v6"
+  auth:
+    mode: "basic"                       # or "oauth" if your site uses it
+    username: "YOUR_USERNAME"
+    password_env: "METASYS_PASSWORD"    # stored in env var
+  verify_tls: true                      # set false only for lab testing
+
+polling:
+  enabled: true
+  read_attributes: ["presentValue", "status"]  # we�ll batch these
+                      # set false only for lab testing
+  auth:
+    mode: "basic"                        # REQUIRED by your schema
+    username: "YOUR_USERNAME"
+    password_env: "METASYS_PASSWORD"
+
+  assets:
+    - asset_id: "CHW_PUMP_1"
+      name: "CHW Pump 1"
+      points:
+        - point_id: "CHW_P1_SPEED"
+          name: "Speed"
+          data_type: "float"
+          tier: 1
+          deadband: 0.2
+          source_ref: "metasys:ref:REPLACE_ME"
+
+        - point_id: "CHW_P1_STATUS"
+          name: "Run Status"
+          data_type: "bool"
+          tier: 1
+          source_ref: "metasys:ref:REPLACE_ME"
+
+        - point_id: "CHW_P1_DP"
+          name: "Differential Pressure"
+          data_type: "float"
+          tier: 2
+          deadband: 0.05
+          source_ref: "metasys:ref:REPLACE_ME"
+
+polling:
+  tick_seconds: 0.25
+  flush_interval_seconds: 5
+  max_points_per_batch: 200
+  out_dir: out
+
+deltas:
+  enabled: true
+
+ingest:
+  endpoint_url: "https://REPLACE_ME/ingest"
+  mode: "file"   # we’re writing batches.jsonl for now
+
+queue:
+  enabled: false
+
+  headers:
+    Authorization: "Bearer YOUR_TOKEN"
+  timeout_seconds: 30
+
+queue:
+  enabled: true
+  path: "./.queue/metasys-connector"
+  max_disk_mb: 500
+  drop_policy: "oldest"

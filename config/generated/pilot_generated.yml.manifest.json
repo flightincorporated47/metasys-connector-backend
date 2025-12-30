@@ -1,0 +1,31 @@
+{
+  "generated_at_utc": "2025-12-30T16:17:11.285372+00:00",
+  "python": "3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]",
+  "inputs": {
+    "base_config": {
+      "path": "C:\\Users\\gduarte\\Downloads\\metasys-connector-main\\metasys-connector-main\\config\\connector_pilot_central_plant.yml",
+      "sha256": "abcba10d8c92412247344ef30dc5550b40fd7e649a46eea965560562e20dde20"
+    },
+    "points_csv": {
+      "path": "C:\\Users\\gduarte\\Downloads\\metasys-connector-main\\metasys-connector-main\\points.csv",
+      "sha256": "5835f0117bbe17c3f0dbd93a9883a1a9d2ac78fb747b4fb790e1d9d579ddbe33"
+    },
+    "schema": {
+      "path": "C:\\Users\\gduarte\\Downloads\\metasys-connector-main\\metasys-connector-main\\schemas\\metasys_connector_config.schema.json",
+      "sha256": "56b3d81aaaf7149563f073b8a5c0688cc4a9b57bc8a2bb9ebe860b4f3447f78a"
+    }
+  },
+  "output": {
+    "yaml_path": "C:\\Users\\gduarte\\Downloads\\metasys-connector-main\\metasys-connector-main\\config\\generated\\pilot_generated.yml",
+    "yaml_sha256": "ccf5be50d884bffd0ed23f67ffe614ae5cc6cc637121921e5c20f577195f2ce5",
+    "manifest_path": "C:\\Users\\gduarte\\Downloads\\metasys-connector-main\\metasys-connector-main\\config\\generated\\pilot_generated.yml.manifest.json"
+  },
+  "counts": {
+    "assets": 1,
+    "points": 3,
+    "tiers": {
+      "1": 2,
+      "2": 1
+    }
+  }
+}

@@ -1,0 +1,4 @@
+﻿asset_id,asset_name,point_id,point_name,data_type,tier,deadband,min_publish_seconds,source_ref
+,HP1-CHWP,HP1-CHWP-STATUS,Run Status,bool,1,,,metasys02:SNE-39/IP.Multstack_CGE.Folder4.HP1-CHWP-STS
+CHW_PUMP_1,HP1-CHWP,HP1-CHWP-SPEED,Speed,float,1,2,5,metasys02:SNE-39/IP.Multstack_CGE.Folder4.HP1-CHWP-SPD-O
+CHW_PUMP_1,HP1-CHWP,HP1-CHW-DP,Differential Pressure,float,2,0.25,5,metasys02:SNE-39/IP.Multstack_CGE.HP1-CHW-DP

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["connector", "metasys", "polling", "deltas", "ingest", "queue"],
+  "properties": {
+    "connector": {
+      "type": "object",
+      "required": ["name", "environment", "organization_id"],
+      "properties": {
+        "name": { "type": "string" },
+        "environment": { "type": "string" },
+        "organization_id": { "type": "string" }
+      }
+    },
+    "metasys": {
+      "type": "object",
+      "required": ["host", "auth"],
+      "properties": {
+        "host": { "type": "string" },
+        "api_base_path": { "type": "string" },
+        "auth": {
+          "type": "object",
+          "required": ["mode"],
+          "properties": {
+            "mode": { "type": "string" },
+            "username": { "type": "string" },
+            "password": { "type": "string" }
+          }
+        }
+      }
+    },
+    "polling": {
+      "type": "object",
+      "properties": {
+        "default_interval_seconds": { "type": "number" },
+        "fast_interval_seconds": { "type": "number" },
+        "slow_interval_seconds": { "type": "number" },
+        "max_batch_size": { "type": "number" }
+      }
+    },
+    "deltas": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "deadband_default": { "type": "number" }
+      }
+    },
+    "ingest": {
+      "type": "object",
+      "required": ["endpoint_url"],
+      "properties": {
+        "endpoint_url": { "type": "string" },
+        "tls_outbound_only": { "type": "boolean" },
+        "timeout_seconds": { "type": "number" },
+        "retry": {
+          "type": "object",
+          "properties": {
+            "max_retries": { "type": "number" },
+            "backoff_seconds": { "type": "number" }
+          }
+        }
+      }
+    },
+    "queue": {
+      "type": "object",
+      "required": ["enabled", "path"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "path": { "type": "string" }
+      }
+    }
+  }
+}

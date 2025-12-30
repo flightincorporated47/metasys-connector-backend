@@ -1,0 +1,4 @@
+asset_id,asset_name,point_id,point_name,data_type,tier,deadband,min_publish_seconds,source_ref
+CHW_PUMP_1,CHW Pump 1,CHW_P1_STATUS,Run Status,bool,1,,,metasys:ref:REPLACE_ME
+CHW_PUMP_1,CHW Pump 1,CHW_P1_SPEED,Speed,float,1,0.2,5,metasys:ref:REPLACE_ME
+CHW_PUMP_1,CHW Pump 1,CHW_P1_DP,Differential Pressure,float,2,0.05,5,metasys:ref:REPLACE_ME
