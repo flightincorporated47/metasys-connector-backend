@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BACnet Scanner Devices Output",
+  "type": "object",
+  "required": ["meta", "devices"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["scan_run_id", "timestamp", "status", "segment_name", "offline_mode", "device_records"],
+      "properties": {
+        "scan_run_id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "status": { "type": "string", "enum": ["ok", "error"] },
+        "site": { "type": ["string", "null"] },
+        "building": { "type": ["string", "null"] },
+        "segment_name": { "type": ["string", "null"] },
+        "local_ip": { "type": ["string", "null"] },
+        "bacnet_port": { "type": "integer" },
+        "offline_mode": { "type": "boolean" },
+        "device_records": { "type": "integer", "minimum": 0 },
+        "error_type": { "type": ["string", "null"] },
+        "error_message": { "type": ["string", "null"] },
+        "note": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "devices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "device_instance": { "type": ["integer", "null"] },
+          "address": { "type": ["string", "null"] },
+          "vendor_name": { "type": ["string", "null"] },
+          "model_name": { "type": ["string", "null"] },
+          "raw_key": { "type": ["string", "null"] },
+          "raw_value": { "type": ["string", "null"] },
+          "raw": { "type": ["string", "null"] }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": false
+}

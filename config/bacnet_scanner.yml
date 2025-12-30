@@ -1,17 +1,35 @@
 ﻿scanner:
   site: "CSUDH"
   building: "Central Plant"
-  segment_name: "CP-VLAN-440"
+  segment_name: "VLAN440"
 
 network:
-  local_ip: "10.30.12.162/24"
+  # On-campus: set to your BACnet NIC IP/prefix, example: "172.16.16.22/24"
+  # Off-campus: can be anything, offline_mode will skip binding.
+  local_ip: "172.16.16.22/24"
   bacnet_port: 47809
 
 safety:
+  # ✅ This is the key: run anywhere, still produce valid output
+  offline_mode: true
+
+  # Optional: populate fake devices so the app UI can be built/tested now
+  mock_devices:
+    - device_instance: 10001
+      address: "172.16.16.50"
+      vendor_name: "Johnson Controls"
+      model_name: "FEC"
+    - device_instance: 10002
+      address: "172.16.16.51"
+      vendor_name: "Tridium"
+      model_name: "JACE"
+
   whois_timeout_seconds: 5
   max_devices: 500
+
+logging:
+  bac0_log_level: "error"   # options: silence, error, info
 
 output:
   directory: "./out/bacnet"
   filename: "devices.json"
-
