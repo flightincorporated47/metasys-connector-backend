@@ -23,3 +23,6 @@ config/generated/
 projects/
 .secrets.json
 **/__pycache__/
+
+exports/
+
