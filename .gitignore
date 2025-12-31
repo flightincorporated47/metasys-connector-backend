@@ -26,3 +26,9 @@ projects/
 
 exports/
 
+# local test payloads
+*_payload.json
+csudh_connector_payload.json
+
+# local tooling
+tools/
