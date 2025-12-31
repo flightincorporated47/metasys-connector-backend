@@ -8,6 +8,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+**/__pycache__/
 
 # Local outputs
 out/
@@ -16,21 +17,17 @@ out/
 # Generated configs/artifacts (keep base configs only)
 config/generated/
 
-# Secrets (if you ever add them)
+# Secrets
 .env
 *.secrets.*
+.secrets.json
+
 # Local API runtime output
 projects/
-.secrets.json
-**/__pycache__/
 
+# Exports (PDF/DOCX) keep local
 exports/
 
-# local test payloads
+# Local test payloads
 *_payload.json
-csudh_connector_payload.json
-
-# local tooling
-tools/
-
 csudh_connector_payload.json
