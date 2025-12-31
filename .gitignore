@@ -19,3 +19,7 @@ config/generated/
 # Secrets (if you ever add them)
 .env
 *.secrets.*
+# Local API runtime output
+projects/
+.secrets.json
+**/__pycache__/

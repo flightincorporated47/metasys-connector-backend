@@ -4,66 +4,42 @@ connector:
   organization_id: "ORG_REPLACE_ME"
 
 metasys:
-  host: "https://YOUR-METASYS-SERVER"   # example: https://metasys-server.example.com
+  host: "https://YOUR-METASYS-SERVER"
   api_base: "/api/v6"
   auth:
-    mode: "basic"                       # or "oauth" if your site uses it
-    username: "YOUR_USERNAME"
-    password_env: "METASYS_PASSWORD"    # stored in env var
-  verify_tls: true                      # set false only for lab testing
-
-polling:
-  enabled: true
-  read_attributes: ["presentValue", "status"]  # we�ll batch these
-                      # set false only for lab testing
-  auth:
-    mode: "basic"                        # REQUIRED by your schema
+    mode: "basic"
     username: "YOUR_USERNAME"
     password_env: "METASYS_PASSWORD"
-
-  assets:
-    - asset_id: "CHW_PUMP_1"
-      name: "CHW Pump 1"
-      points:
-        - point_id: "CHW_P1_SPEED"
-          name: "Speed"
-          data_type: "float"
-          tier: 1
-          deadband: 0.2
-          source_ref: "metasys:ref:REPLACE_ME"
-
-        - point_id: "CHW_P1_STATUS"
-          name: "Run Status"
-          data_type: "bool"
-          tier: 1
-          source_ref: "metasys:ref:REPLACE_ME"
-
-        - point_id: "CHW_P1_DP"
-          name: "Differential Pressure"
-          data_type: "float"
-          tier: 2
-          deadband: 0.05
-          source_ref: "metasys:ref:REPLACE_ME"
+  verify_tls: true
+  assets: []   # populated by import_points_csv
 
 polling:
   tick_seconds: 0.25
   flush_interval_seconds: 5
   max_points_per_batch: 200
-  out_dir: out
+  out_dir: "out"
+  defaults:
+    analog:
+      deadband: 0.2
+    digital:
+      deadband: 0.0
+    tiers:
+      "1":
+        poll_seconds: 5
+        min_publish_seconds: 5
+      "2":
+        poll_seconds: 30
+        min_publish_seconds: 10
+      "3":
+        poll_seconds: 300
+        min_publish_seconds: 30
 
 deltas:
   enabled: true
 
 ingest:
   endpoint_url: "https://REPLACE_ME/ingest"
-  mode: "file"   # we’re writing batches.jsonl for now
-
-queue:
-  enabled: false
-
-  headers:
-    Authorization: "Bearer YOUR_TOKEN"
-  timeout_seconds: 30
+  mode: "file"
 
 queue:
   enabled: true
