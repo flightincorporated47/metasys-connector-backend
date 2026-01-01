@@ -52,6 +52,25 @@ class SaveConfigBody(BaseModel):
 class GenerateYamlBody(BaseModel):
     write_to_disk: bool = True
 
+@app.get("/api/v1/projects")
+def list_projects():
+    if not DATA_DIR.exists():
+        return {"projects": []}
+
+    projects = []
+    for p in sorted(DATA_DIR.iterdir()):
+        if not p.is_dir():
+            continue
+        cfg = p / "config.json"
+        projects.append(
+            {
+                "project_id": p.name,
+                "has_config": cfg.exists(),
+                "config_path": str(cfg) if cfg.exists() else None,
+            }
+        )
+    return {"projects": projects}
+
 @app.get("/api/v1/health")
 def health():
     return {"ok": True}
