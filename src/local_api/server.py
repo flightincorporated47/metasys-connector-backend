@@ -37,7 +37,7 @@ def _config_path(project_id: str) -> Path:
 def _read_json(path: Path) -> Dict[str, Any]:
     if not path.exists():
         return {}
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 def _write_json(path: Path, obj: Dict[str, Any]) -> None:
@@ -52,7 +52,9 @@ class SaveConfigBody(BaseModel):
 class GenerateYamlBody(BaseModel):
     write_to_disk: bool = True
 
-
+@app.get("/api/v1/health")
+def health():
+    return {"ok": True}
 @app.get("/api/v1/projects/{project_id}/connector/config")
 def get_connector_config(project_id: str):
     path = _config_path(project_id)
