@@ -36,3 +36,5 @@ export/
 metasys_connector_sops_pack/
 .env
 .env.*
+export/
+metasys_connector_sops_pack/
