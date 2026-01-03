@@ -31,3 +31,6 @@ exports/
 # Local test payloads
 *_payload.json
 csudh_connector_payload.json
+# generated / outputs
+export/
+metasys_connector_sops_pack/
