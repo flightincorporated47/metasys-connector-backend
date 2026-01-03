@@ -1,8 +1,12 @@
 # src/local_api/server.py
 from __future__ import annotations
 
-import json
 import os
+import json
+import hmac
+import hashlib
+from fastapi import Request, HTTPException
+
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -253,4 +257,165 @@ def yaml_diff(project_id: str):
 @app.get("/api/v1/projects/{project_id}/secrets/{key}")
 def secret_exists(project_id: str, key: str):
     return {"exists": bool(os.environ.get(key))}
+
+def _require_env(name: str) -> str:
+    v = (os.environ.get(name) or "").strip()
+    if not v:
+        raise HTTPException(status_code=500, detail=f"Missing env var: {name}")
+    return v
+
+
+def _verify_github_signature(body: bytes, signature_header: str | None) -> None:
+    """
+    Validates GitHub webhook signature using X-Hub-Signature-256 (HMAC-SHA256).
+    GitHub sends header like: sha256=<hexdigest>
+    """
+    secret = _require_env("GITHUB_WEBHOOK_SECRET")
+
+    if not signature_header or not signature_header.startswith("sha256="):
+        raise HTTPException(status_code=401, detail="Missing/invalid X-Hub-Signature-256")
+
+    expected = "sha256=" + hmac.new(
+        secret.encode("utf-8"),
+        body,
+        hashlib.sha256,
+    ).hexdigest()
+
+    # constant-time compare
+    if not hmac.compare_digest(signature_header, expected):
+        raise HTTPException(status_code=401, detail="Signature mismatch")
+
+
+def _send_resend_email(subject: str, html: str) -> None:
+    import resend  # pip install resend
+
+    resend.api_key = _require_env("RESEND_API_KEY")
+
+    to_list = _require_env("ALERT_TO").split()
+    from_addr = _require_env("ALERT_FROM")
+
+    params = {
+        "from": from_addr,
+        "to": to_list,
+        "subject": subject,
+        "html": html,
+    }
+
+    resend.Emails.send(params)
+
+
+@app.post("/api/v1/webhooks/github")
+async def github_webhook(request: Request):
+    body = await request.body()
+
+    # Verify GitHub signature (recommended by GitHub)
+    _verify_github_signature(body, request.headers.get("X-Hub-Signature-256"))
+
+    event = request.headers.get("X-GitHub-Event", "")
+    if event != "push":
+        return {"ok": True, "ignored_event": event}
+
+    payload = json.loads(body.decode("utf-8") or "{}")
+
+    repo = payload.get("repository", {}).get("full_name", "unknown/repo")
+    ref = payload.get("ref", "")
+    pusher = payload.get("pusher", {}).get("name", "unknown")
+    commits = payload.get("commits", []) or []
+
+    lines = []
+    for c in commits[:10]:
+        msg = (c.get("message") or "").splitlines()[0]
+        url = c.get("url") or ""
+        lines.append(f"- {msg}<br/>{url}")
+
+    subject = f"[GitHub Push] {repo} {ref} by {pusher}"
+    html = f"""
+    <h2>GitHub Push Event</h2>
+    <p><b>Repo:</b> {repo}<br/>
+       <b>Ref:</b> {ref}<br/>
+       <b>Pusher:</b> {pusher}<br/>
+       <b>Commits:</b> {len(commits)}</p>
+    <p>{'<br/><br/>'.join(lines) if lines else '(no commit details)'}</p>
+    """
+
+    _send_resend_email(subject, html)
+    return {"ok": True, "sent": True, "commits": len(commits)}
+
+def _require_env(name: str) -> str:
+    v = (os.environ.get(name) or "").strip()
+    if not v:
+        raise HTTPException(status_code=500, detail=f"Missing env var: {name}")
+    return v
+
+
+def _verify_github_signature(body: bytes, signature_header: str | None) -> None:
+    """
+    Verify GitHub webhook signature header X-Hub-Signature-256.
+    Format: sha256=<hexdigest>
+    """
+    secret = _require_env("GITHUB_WEBHOOK_SECRET")
+
+    if not signature_header or not signature_header.startswith("sha256="):
+        raise HTTPException(status_code=401, detail="Missing/invalid X-Hub-Signature-256")
+
+    mac = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    expected = f"sha256={mac}"
+
+    if not hmac.compare_digest(signature_header, expected):
+        raise HTTPException(status_code=401, detail="Signature mismatch")
+
+
+def _send_resend_email(subject: str, html: str) -> None:
+    import resend  # pip install resend
+
+    resend.api_key = _require_env("RESEND_API_KEY")
+    to_list = _require_env("ALERT_TO").split()
+    from_addr = _require_env("ALERT_FROM")
+
+    resend.Emails.send(
+        {
+            "from": from_addr,
+            "to": to_list,
+            "subject": subject,
+            "html": html,
+        }
+    )
+
+
+@app.post("/api/v1/webhooks/github")
+async def github_webhook(request: Request):
+    body = await request.body()
+
+    # Security: verify GitHub signature (recommended)
+    _verify_github_signature(body, request.headers.get("X-Hub-Signature-256"))
+
+    event = request.headers.get("X-GitHub-Event", "")
+    if event != "push":
+        return {"ok": True, "ignored_event": event}
+
+    payload = json.loads(body.decode("utf-8") or "{}")
+
+    repo = payload.get("repository", {}).get("full_name", "unknown/repo")
+    ref = payload.get("ref", "")
+    pusher = payload.get("pusher", {}).get("name", "unknown")
+    commits = payload.get("commits", []) or []
+
+    items = []
+    for c in commits[:10]:
+        msg = (c.get("message") or "").splitlines()[0]
+        url = c.get("url") or ""
+        items.append(f"<li><b>{msg}</b><br/><a href='{url}'>{url}</a></li>")
+
+    subject = f"[GitHub Push] {repo} {ref} by {pusher}"
+    html = f"""
+      <h2>GitHub Push</h2>
+      <p><b>Repo:</b> {repo}<br/>
+         <b>Ref:</b> {ref}<br/>
+         <b>Pusher:</b> {pusher}<br/>
+         <b>Commits:</b> {len(commits)}</p>
+      <ol>{''.join(items) if items else '<li>(no commit details)</li>'}</ol>
+    """
+
+    _send_resend_email(subject, html)
+    return {"ok": True, "sent": True, "commits": len(commits)}
 
