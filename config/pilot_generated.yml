@@ -1,0 +1,98 @@
+# IT-SAFE PILOT CONFIG (Central Plant)
+# - Read-only Metasys REST API (Basic auth)
+# - Deltas only (stores changes locally)
+# - Polling intervals aligned to JCI guidance (>= 60s)
+# - No secrets stored in YAML (password comes from env var)
+#
+# IMPORTANT:
+# 1) This file MUST contain metasys.assets (even if empty) or the connector will crash.
+# 2) Points must be a YAML list. Use either:
+#      points: []
+#    or:
+#      points:
+#        - name: ...
+# 3) source_ref must be a *Metasys object id* (UUID-like), NOT "metasys:ref:...".
+#
+# To smoke-test a point object id from inside the connector container:
+#   docker compose exec connector python /app/tools/test_metasys_read.py <OBJECT_ID>
+
+connector:
+  name: central-plant-pilot
+  environment: dev
+  # NOTE: this is your Supabase project ref, not an org UUID
+  organization_id: qhqkgfwuagpqhcnabmxf
+
+metasys:
+  host: "https://10.12.30.143"
+  auth:
+    mode: "basic"
+    username: "metasyssysagent"
+    # The NAME of the env var that holds the password (do not put the password here)
+    password_env: "METASYS_PASSWORD"
+  # Keep TLS verification ON for IT compliance.
+  # If Metasys uses a self-signed/invalid cert, fix the cert (preferred) or add a trusted CA bundle.
+  verify_tls: true
+
+  # Assets group points into human-friendly buckets.
+  # Replace the example point IDs below with real Metasys object IDs.
+  assets:
+    - asset_id: "CHW_PUMP_1"
+      name: "CHW Pump 1"
+      # Start empty; add points after you have real Metasys object IDs.
+      # To add points, replace `points: []` with a list like:
+      #
+      # points:
+      #   - point_id: "CHW_PUMP_1_SPD"
+      #     name: "CHW Pump 1 Speed"
+      #     kind: "analog"
+      #     tier: "1"
+      #     source_ref: "7328c260-d160-5739-b717-dedb0de0a7b7"
+      #
+      #   - point_id: "CHW_PUMP_1_CMD"
+      #     name: "CHW Pump 1 Command"
+      #     kind: "digital"
+      #     tier: "1"
+      #     source_ref: "949d85f6-60d1-5688-8c87-418e78c92f27"
+      points: []
+
+polling:
+  # Scheduler tick; not a poll rate.
+  tick_seconds: 1.0
+  # How often to flush/publish deltas (even if multiple changes occur).
+  flush_interval_seconds: 15
+
+  # For ~300-point pilot, max_points_per_batch=80 typically yields ~4 batch requests per poll cycle.
+  max_points_per_batch: 80
+  out_dir: "out"
+
+  defaults:
+    analog:
+      deadband: 0.2
+    digital:
+      deadband: 0.0
+
+    tiers:
+      "1":
+        poll_seconds: 60
+        min_publish_seconds: 60
+      "2":
+        poll_seconds: 300
+        min_publish_seconds: 300
+      "3":
+        poll_seconds: 900
+        min_publish_seconds: 900
+
+deltas:
+  enabled: true
+
+ingest:
+  # When you're ready to publish, replace this with your ingest endpoint.
+  # During pilot, we keep mode=file so nothing is pushed anywhere.
+  endpoint_url: "https://REPLACE_ME/ingest"
+  mode: "file"
+
+queue:
+  enabled: true
+  path: "./.queue/metasys-connector"
+  max_disk_mb: 500
+  drop_policy: "oldest"

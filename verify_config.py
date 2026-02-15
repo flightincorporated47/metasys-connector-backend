@@ -1,73 +1,162 @@
+import argparse
+import sys
+from collections import Counter
+from typing import Any, Dict, List, Tuple
+
 import requests
 import yaml
-from collections import Counter
 
-BASE = "http://127.0.0.1:8787/api/v1"
-PROJECT = "csudh-pilot-central-plant"
 
-def get_json(url: str):
-    r = requests.get(url, timeout=30)
+def get_json(url: str, timeout: int = 30) -> Dict[str, Any]:
+    r = requests.get(url, timeout=timeout)
     r.raise_for_status()
     return r.json()
 
-def post_json(url: str, payload=None):
-    r = requests.post(url, json=payload or {}, timeout=30)
+
+def post_json(url: str, payload=None, timeout: int = 30) -> Dict[str, Any]:
+    r = requests.post(url, json=payload or {}, timeout=timeout)
     r.raise_for_status()
     return r.json()
 
-cfg = get_json(f"{BASE}/projects/{PROJECT}/connector/config")
-yaml_out = post_json(f"{BASE}/projects/{PROJECT}/connector/generate-yaml", payload={"dry_run": True})
 
-# Your API might return config under different keys, so we normalize
-cfg_obj = cfg.get("config_json") if isinstance(cfg, dict) and "config_json" in cfg else cfg
-cfg_connector = cfg_obj.get("connector") if isinstance(cfg_obj, dict) else None
+def normalize_config_obj(cfg: Any) -> Dict[str, Any]:
+    if isinstance(cfg, dict) and "config_json" in cfg and isinstance(cfg["config_json"], dict):
+        return cfg["config_json"]
+    if isinstance(cfg, dict):
+        return cfg
+    return {}
 
-yaml_text = (
-    yaml_out.get("yaml_text")
-    or yaml_out.get("yaml")
-    or yaml_out.get("text")
-    or ""
-)
 
-if not yaml_text.strip():
-    raise SystemExit("❌ generate-yaml response did not include yaml_text/yaml/text")
+def extract_yaml_text(yaml_out: Dict[str, Any]) -> str:
+    return (
+        (yaml_out.get("yaml_text") or "")
+        or (yaml_out.get("yaml") or "")
+        or (yaml_out.get("text") or "")
+    ).strip()
 
-doc = yaml.safe_load(yaml_text) or {}
 
-json_tiers = (cfg_connector or {}).get("polling", {}).get("tiers", [])
-yaml_tiers = (doc.get("connector") or {}).get("polling", {}).get("tiers", [])
+def tier_summary(tiers: List[Dict[str, Any]]) -> List[Tuple[str, int, int]]:
+    out = []
+    for t in tiers:
+        name = str(t.get("name") or "")
+        interval = int(t.get("interval_s") or 0)
+        pts = t.get("points") or []
+        out.append((name, interval, len(pts)))
+    return out
 
-print("JSON tiers:", [(t.get("name"), t.get("interval_s"), len(t.get("points", []))) for t in json_tiers])
-print("YAML tiers:", [(t.get("name"), t.get("interval_s"), len(t.get("points", []))) for t in yaml_tiers])
 
-if len(json_tiers) != len(yaml_tiers):
-    raise SystemExit(f"❌ Tier count mismatch: JSON={len(json_tiers)} YAML={len(yaml_tiers)}")
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Verify connector config JSON ↔ generated YAML consistency")
+    ap.add_argument("--base", default="http://localhost:8081/api/v1", help="Connector API base (default: %(default)s)")
+    ap.add_argument("--project", required=True, help="Project ID (e.g. csudh-pilot-central-plant)")
+    ap.add_argument("--timeout", type=int, default=30, help="HTTP timeout seconds (default: %(default)s)")
+    ap.add_argument("--max-duplicates-print", type=int, default=10, help="Max duplicate points to print")
+    ap.add_argument("--max-spaces-print", type=int, default=10, help="Max spaced points to print")
 
-for jt, yt in zip(json_tiers, yaml_tiers):
-    if jt.get("name") != yt.get("name"):
-        raise SystemExit(f"❌ Tier name mismatch: {jt.get('name')} vs {yt.get('name')}")
-    if int(jt.get("interval_s")) != int(yt.get("interval_s")):
-        raise SystemExit(f"❌ Interval mismatch in {jt.get('name')}: {jt.get('interval_s')} vs {yt.get('interval_s')}")
-    if len(jt.get("points", [])) != len(yt.get("points", [])):
-        raise SystemExit(
-            f"❌ Point count mismatch in {jt.get('name')}: "
-            f"{len(jt.get('points', []))} vs {len(yt.get('points', []))}"
-        )
+    args = ap.parse_args()
 
-all_points = []
-for t in yaml_tiers:
-    all_points.extend(t.get("points", []))
+    base = args.base.rstrip("/")
+    project = args.project.strip()
 
-dupes = [p for p, c in Counter(all_points).items() if c > 1]
-space_points = [p for p in all_points if " " in p]
+    if not project:
+        print("❌ project is required", file=sys.stderr)
+        return 2
 
-print(f"Total points in YAML: {len(all_points)}")
-print(f"Duplicate points: {len(dupes)}")
-if dupes:
-    print("Sample dupes:", dupes[:10])
+    cfg_url = f"{base}/projects/{project}/connector/config"
+    gen_url = f"{base}/projects/{project}/connector/generate-yaml"
 
-print(f"Points containing spaces: {len(space_points)}")
-if space_points:
-    print("Sample spaced points:", space_points[:10])
+    print(f"🔎 Base:    {base}")
+    print(f"🔎 Project: {project}")
+    print(f"➡️  GET  {cfg_url}")
+    print(f"➡️  POST {gen_url} (dry_run=true)")
+    print("")
 
-print("✅ JSON and YAML tier structure matches.")
+    try:
+        cfg_raw = get_json(cfg_url, timeout=args.timeout)
+        yaml_out = post_json(gen_url, payload={"dry_run": True}, timeout=args.timeout)
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ Connection failed: {e}", file=sys.stderr)
+        print("   Tip: ensure docker compose is up and the connector port is reachable.", file=sys.stderr)
+        return 10
+    except requests.exceptions.HTTPError as e:
+        print(f"❌ HTTP error: {e}", file=sys.stderr)
+        return 11
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}", file=sys.stderr)
+        return 12
+
+    cfg_obj = normalize_config_obj(cfg_raw)
+    yaml_text = extract_yaml_text(yaml_out)
+
+    if not yaml_text:
+        print("❌ generate-yaml response did not include yaml_text/yaml/text", file=sys.stderr)
+        return 20
+
+    try:
+        doc = yaml.safe_load(yaml_text) or {}
+    except Exception as e:
+        print(f"❌ YAML parse failed: {e}", file=sys.stderr)
+        return 21
+
+    # Support either top-level 'connector' or full doc
+    json_connector = (cfg_obj.get("connector") or {}) if isinstance(cfg_obj, dict) else {}
+    yaml_connector = (doc.get("connector") or {}) if isinstance(doc, dict) else {}
+
+    json_tiers = (json_connector.get("polling") or {}).get("tiers") or []
+    yaml_tiers = (yaml_connector.get("polling") or {}).get("tiers") or []
+
+    if not isinstance(json_tiers, list) or not isinstance(yaml_tiers, list):
+        print("❌ polling.tiers missing or not a list in JSON or YAML", file=sys.stderr)
+        return 30
+
+    print("📌 JSON tiers:", tier_summary(json_tiers))
+    print("📌 YAML tiers:", tier_summary(yaml_tiers))
+    print("")
+
+    if len(json_tiers) != len(yaml_tiers):
+        print(f"❌ Tier count mismatch: JSON={len(json_tiers)} YAML={len(yaml_tiers)}", file=sys.stderr)
+        return 40
+
+    for jt, yt in zip(json_tiers, yaml_tiers):
+        jn = jt.get("name")
+        yn = yt.get("name")
+        if jn != yn:
+            print(f"❌ Tier name mismatch: {jn} vs {yn}", file=sys.stderr)
+            return 41
+
+        ji = int(jt.get("interval_s") or 0)
+        yi = int(yt.get("interval_s") or 0)
+        if ji != yi:
+            print(f"❌ Interval mismatch in {jn}: {ji} vs {yi}", file=sys.stderr)
+            return 42
+
+        jp = jt.get("points") or []
+        yp = yt.get("points") or []
+        if len(jp) != len(yp):
+            print(f"❌ Point count mismatch in {jn}: {len(jp)} vs {len(yp)}", file=sys.stderr)
+            return 43
+
+    all_points: List[str] = []
+    for t in yaml_tiers:
+        pts = t.get("points") or []
+        all_points.extend([str(p) for p in pts])
+
+    dupes = [p for p, c in Counter(all_points).items() if c > 1]
+    spaced = [p for p in all_points if " " in p]
+
+    print(f"✅ YAML total points: {len(all_points)}")
+    print(f"✅ Duplicate points: {len(dupes)}")
+    if dupes:
+        print("   Sample dupes:", dupes[: args.max_duplicates_print])
+
+    print(f"✅ Points containing spaces: {len(spaced)}")
+    if spaced:
+        print("   Sample spaced:", spaced[: args.max_spaces_print])
+
+    print("")
+    print("🎉 PASS: JSON and YAML tier structure matches.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
